@@ -10,55 +10,41 @@ import mplhep as hep
 
 from utils import *
 
+l1_branches = ['pt', 'eta', 'phi']
+
 l2_branches = [
-    'pt',
-    'eta',
-    'phi',
-#    'chi2',
+    'pt','eta', 'phi',
     'validHits',
-    'tsos_IP_eta',
-    'tsos_IP_phi',
-    'tsos_IP_pt',
-    'tsos_IP_pt_eta',
-    'tsos_IP_pt_phi',
-    'err0_IP',
-    'err1_IP',
-    'err2_IP',
-    'err3_IP',
-    'err4_IP',
-    'tsos_MuS_eta',
-    'tsos_MuS_phi',
-    'tsos_MuS_pt',
-    'tsos_MuS_pt_eta',
-    'tsos_MuS_pt_phi',
-    'err0_MuS',
-    'err1_MuS',
-    'err2_MuS',
-    'err3_MuS',
-    'err4_MuS',
-    'tsos_IP_valid',
-    'tsos_MuS_valid',
+    'tsos_IP_eta', 'tsos_IP_phi', 'tsos_IP_pt',
+    'tsos_IP_pt_eta', 'tsos_IP_pt_phi',
+    'err0_IP', 'err1_IP', 'err2_IP', 'err3_IP', 'err4_IP',
+    'tsos_MuS_eta', 'tsos_MuS_phi', 'tsos_MuS_pt',
+    'tsos_MuS_pt_eta', 'tsos_MuS_pt_phi',
+    'err0_MuS', 'err1_MuS', 'err2_MuS', 'err3_MuS', 'err4_MuS',
+    'tsos_IP_valid', 'tsos_MuS_valid',
 ]
-l2_branches = [
-    'pt',
-    'eta',
-    'phi',]
+
 l3_branches = gen_branches = ['pt', 'eta', 'phi']
 
 seed_branches = [
-    #'pt', 'eta', 'phi', 'hitBased', 'eta_pos', 'layerNum',
-    #'tsos_q_p_err', 'tsos_lambda_err', 'tsos_phi_err','tsos_xT_err','tsos_yT_err', 
-    #'dR_pos', 'dR_mom'
+    'pt', 'eta', 'phi', 'hitBased', 'eta_pos', 'layerNum',
+    'tsos_q_p_err', 'tsos_lambda_err', 'tsos_phi_err','tsos_xT_err','tsos_yT_err', 
+    'dR_pos', 'dR_mom'
 ]
 
 def build_dataset(dataset, progress_bar=False, study_seeds=False):
     label = dataset['name']
     path = dataset['path']
-    l2_name = dataset.pop('collection', 'L2muons')
-    print(f'Processing {label}')
-    all_l2s = MuCollection()
-    all_l3s = MuCollection()
+    ref_name = dataset.pop('reference', 'L2muons')
+    trg_name = dataset.pop('target', 'hltOImuons')
+    gen_name = 'genParticles'
+
+    all_ref = MuCollection()
+    all_trg = MuCollection()
     all_seeds = MuCollection()
+    
+    print(f'Processing {label}')
+
     loop = tqdm(glob.glob(path)) if progress_bar else glob.glob(path)
     i = 0
     for fname in loop:
@@ -70,47 +56,51 @@ def build_dataset(dataset, progress_bar=False, study_seeds=False):
         event = tree['eventNumber'].array()
         if len(event)==0:
             continue
-        #l2_name = 'L2muons'
-        #l2_name = 'L1Tkmuons'
-        l3_name = 'hltOImuons'
-        gen_name = 'genParticles'
 
-        l2_muons = {}
-        l3_muons = {}
+        ref_muons = {}
+        trg_muons = {}
         gen_muons = {}
         seeds = {}
 
-        #l2_cut = (tree[f'{l2_name}.validHits'].array()>20)&(tree[f'{l2_name}.pt'].array()>10)
-        #l2_cut = (tree[f'{l2_name}.pt'].array()>24)
-        l2_cut = (tree[f'{l2_name}.pt'].array()>0)
+        #ref_cut = (tree[f'{ref_name}.validHits'].array()>20)&(tree[f'{ref_name}.pt'].array()>10)
+        #ref_cut = (tree[f'{ref_name}.pt'].array()>24)
+        ref_cut = (tree[f'{ref_name}.pt'].array()>0)
 
+        if 'L2' in ref_name:
+            ref_branches = l2_branches
+        elif 'L1' in ref_name:
+            ref_branches = l1_branches
+        else:
+            ref_branches = []
+
+        trg_branches = l3_branches
         
-        for branch in l2_branches:
-            l2_muons[branch] = tree[f'{l2_name}.{branch}'].array()[l2_cut]
-        for branch in l3_branches:
-            l3_muons[branch] = tree[f'{l3_name}.{branch}'].array()
+        for branch in ref_branches:
+            ref_muons[branch] = tree[f'{ref_name}.{branch}'].array()[ref_cut]
+        for branch in trg_branches:
+            trg_muons[branch] = tree[f'{trg_name}.{branch}'].array()
         for branch in gen_branches:
             gen_muons[branch] = tree[f'{gen_name}.{branch}'].array()
 
-        l2_muons.update({
-            'nVtx': ak.broadcast_arrays(nVtx, tree[f'{l2_name}.pt'].array()[l2_cut])[0],
-            'event': ak.broadcast_arrays(event, tree[f'{l2_name}.pt'].array()[l2_cut])[0],
+        ref_muons.update({
+            'nVtx': ak.broadcast_arrays(nVtx, tree[f'{ref_name}.pt'].array()[ref_cut])[0],
+            'event': ak.broadcast_arrays(event, tree[f'{ref_name}.pt'].array()[ref_cut])[0],
         })
-        l3_muons.update({
-            'nVtx': ak.broadcast_arrays(nVtx, tree[f'{l3_name}.pt'].array())[0],
-            'event': ak.broadcast_arrays(event, tree[f'{l3_name}.pt'].array())[0],
+        trg_muons.update({
+            'nVtx': ak.broadcast_arrays(nVtx, tree[f'{trg_name}.pt'].array())[0],
+            'event': ak.broadcast_arrays(event, tree[f'{trg_name}.pt'].array())[0],
         })
         gen_muons.update({
             'nVtx': ak.broadcast_arrays(nVtx, tree[f'{gen_name}.pt'].array())[0],
             'event': ak.broadcast_arrays(event, tree[f'{gen_name}.pt'].array())[0],
         })
 
-        l2s = MuCollection(**l2_muons)
-        l3s = MuCollection(**l3_muons)
-        has_matched_l3 = match(l2s, l3s, dR_cutoff=0.3)
-        l2_muons[f'pass: {label}'] = has_matched_l3
-        all_l2s += MuCollection(**l2_muons)
-        all_l3s += MuCollection(**l3_muons)
+        refs = MuCollection(**ref_muons)
+        trgs = MuCollection(**trg_muons)
+        has_matched = match(refs, trgs, dR_cutoff=0.3)
+        ref_muons[f'pass: {label}'] = has_matched
+        all_ref += MuCollection(**ref_muons)
+        all_trg += MuCollection(**trg_muons)
         
         if study_seeds:
             seed_cut = (tree['seeds.hitBased'].array()==0)&(tree['seeds.layerNum'].array()==0)
@@ -120,13 +110,13 @@ def build_dataset(dataset, progress_bar=False, study_seeds=False):
                 'nVtx': ak.broadcast_arrays(nVtx, tree[f'seeds.pt'].array()[seed_cut])[0],
                 'event': ak.broadcast_arrays(event, tree[f'seeds.pt'].array()[seed_cut])[0],
             })
-        all_seeds += MuCollection(**seeds)
+            all_seeds += MuCollection(**seeds)
 
     print(f'Done: {label}')
     return {
-        label: all_l2s,
+        label: all_ref,
         #f'{label}_seeds': all_seeds
-        #f'{label}_l3s': all_l3s
+        #f'{label}_l3s': all_trg
     }
 
 
