@@ -3,7 +3,9 @@ import argparse
 import time
 
 #from datasets.datasets_run2_1to7seeds import datasets, datasets_dict
-from datasets.datasets_different import datasets, datasets_dict
+#from datasets.datasets_run2_VariousMC_5seeds import datasets, datasets_dict
+from datasets.datasets_run2_first_studies import datasets
+datasets_dict = {ds['name']:[ds] for ds in datasets}
 
 from tqdm import tqdm
 import glob
@@ -33,19 +35,25 @@ import cmsml
 OUT_PATH = '/home/dkondra/muon-hlt-analysis/plots/'
 MODEL_PATH = '/home/dkondra/muon-hlt-analysis/models/'
 
-def train(df, save=False, model_path='', opt_label=''):
-    ignore_lbl = 'default'
-    features = l2_branches
+def train(df, **kwargs):
+    save = kwargs.pop('save', True)
+    model_path = kwargs.pop('model_path', './')
+    opt_label = kwargs.pop('opt_label', 'test')
+    plot_loss = kwargs.pop('plot_loss', False)
+
+    features = l2_branches # imported from tools
     truth_columns = []
     prediction_columns = []
     for c in df.columns:
-        if ('pass' in c) and (c!='pass: default (Run 2)') and (c!='pass: default, dynamic SF (Run 2)'):
-            truth_columns.append(c)
-            prediction_columns.append(c.replace('pass', 'pred'))
+        truth_columns.append(c)
+        prediction_columns.append(c.replace('pass', 'pred'))
     for c in prediction_columns:
         df[c] = -1
-    if len(prediction_columns)<2:
-        return df
+    if len(prediction_columns)==1:
+        return df, prediction_columns[0]
+    elif len(prediction_columns)<1:
+        return df, None
+
     nfolds = 4
     for i in range(nfolds):
         label = f'dnn_{opt_label}_{i}'.replace(' ', '_')
@@ -108,97 +116,16 @@ def train(df, save=False, model_path='', opt_label=''):
             print(f'Saving model to {save_path}')
             cmsml.tensorflow.save_graph(save_path, dnn, variables_to_constants=True)
             cmsml.tensorflow.save_graph(save_path+'.txt', dnn, variables_to_constants=True)
-        plot_loss(history, label)
+        if plot_loss:
+            plot_loss(history, label, OUT_PATH)
         prediction = pd.DataFrame(dnn.predict(x_eval))
         df.loc[eval_filter, prediction_columns] = prediction.values
     print(prediction_columns)
     df['best_guess_label'] = df[prediction_columns].idxmax(axis=1)
     df['best_guess_label'] = df.best_guess_label.str.replace('pred: ', 'pass: ')
-    df[f'DNN recommendation {opt_label}'] = df.lookup(df.index, df.best_guess_label)
-    return df
-
-
-def plot_loss(history, label):
-    fig = plt.figure()
-    fig.clf()
-    plt.rcParams.update({'font.size': 10})
-    fig.set_size_inches(5, 4)
-    plt.plot(history.history['loss'])
-    plt.plot(history.history['val_loss'])
-    plt.title('model loss')
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'val'], loc='upper left')
-    out = f'{OUT_PATH}/loss_{label}'
-    fig.savefig(out)
-    print(f'Saved loss plot: {out}')
-
-def plot_efficiencies(df, only_default_and_best=False, opt_label='', save=True):
-    x_opts = ['eta', 'pt', 'nVtx', 'validHits']
-    bin_opts = {
-        'eta': regular(20, -2.4, 2.4),
-        'pt': np.array([5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]),,
-        'nVtx': regular(50, 0, 100),
-        'validHits': regular(30, 0, 60),
-    }
-    strategies = []
-    for c in df.columns:
-        if ('pass' in c):
-            if not (only_default_and_best and ((c!='pass: default (Run 2)') and  (c!='pass: default, dynamic SF (Run 2)'))):
-                strategies.append(c)
-    strategies.append(f'DNN recommendation {opt_label}')
-    plotting_data = {}
-    for x in x_opts:
-        plotting_data[x] = {}
-        out_name = f'DNN_eff_vs_{x}'
-        bins = bin_opts[x]
-        values = {}
-        errors_lo = {}
-        errors_hi = {}
-        for s in strategies:
-            if s not in df.columns:
-                continue
-            values[s] = np.array([])
-            errors_lo[s] = np.array([])
-            errors_hi[s] = np.array([])
-            for ibin in range(len(bins)-1):
-                bin_min = bins[ibin]
-                bin_max = bins[ibin+1]
-                cut = (df[x] >= bin_min) & (df[x] < bin_max)
-                total = df.loc[cut, s].shape[0]
-                passed = df.loc[cut, s].sum().sum()
-                if total == 0:
-                    value = err_lo = err_hi = 0
-                else:
-                    value = passed / total
-
-                # Clopper-Pearson errors
-                lo, hi = clopper_pearson(total, passed, 0.327)
-                err_lo = value - lo
-                err_hi = hi - value
-
-                values[s] = np.append(values[s], value)
-                errors_lo[s] = np.append(errors_lo[s], err_lo)
-                errors_hi[s] = np.append(errors_hi[s], err_hi)
-        data = {
-            'xlabel': x,
-            'edges': bins,
-            'values': values,
-            'errors_lo': errors_lo,
-            'errors_hi': errors_hi,
-            'out_name': out_name,
-        }
-        plotting_data[x] = data
-        if save:
-            plot(
-                data,
-                out_name=out_name,
-                ymin=0,
-                ymax=1.01,
-                ylabel='Efficiency',
-                out_path=OUT_PATH
-            )
-    return plotting_data
+    pred_label = f'DNN recommendation {opt_label}'
+    df[pred_label] = df.lookup(df.index, df.best_guess_label)
+    return df, pred_label
 
 
 def plot_strategies(df):
@@ -206,7 +133,7 @@ def plot_strategies(df):
     x_opts = l2_branches
     bin_opts = {
         'eta': regular(20, -2.4, 2.4),
-        'pt': np.array([5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]),,
+        'pt': np.array([5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]),
 #        'nVtx': regular(10, 0, 10),
         'validHits': regular(30, 0, 60),
         'chi2': regular(50, 0, 5),
@@ -290,13 +217,13 @@ def run_training(**kwargs):
     label = kwargs.pop('label', 'test')
     # Get data for efficiency plots
     if args.dask:
-        n = 22
+        n = 8
         print(f'Using Dask with {n} local workers')
         client = dask.distributed.Client(
             processes=True,
             n_workers=n,
             threads_per_worker=1,
-            memory_limit='1GB'
+            memory_limit='4GB'
         )
         rets = client.gather(
             client.map(build_dataset, datasets_)
@@ -306,12 +233,28 @@ def run_training(**kwargs):
         for ds in datasets_:
             rets.append(build_dataset(ds, progress_bar=True))
     
-    df = preprocess(rets)
+    df = preprocess(rets, only_overlap_events=True)
     print(df)
+    pred_col_names = None
     if args.train:
-        df = train(df, save=True, model_path=MODEL_PATH, opt_label=label)
+        pars = {
+            'save': True,
+            'model_path': MODEL_PATH,
+            'opt_label': label,
+            'plot_loss': False
+        }
+        df, pred_col_name = train(df, **pars)
+        if pred_col_name is not None:
+            pred_col_names = [pred_col_name]
     
-    eff_plots = plot_efficiencies(df, only_default_and_best=True, opt_label=label, save=False)
+    pars = {
+        'cols_to_plot': pred_col_names,
+        'opt_label': label,
+        'draw': False,
+        'out_path': OUT_PATH,
+        'ymin': 0.8
+    }
+    eff_plots = plot_efficiencies(df, **pars)
     
 #    if args.train:
 #        plot_strategies(df)
@@ -332,8 +275,8 @@ if __name__=='__main__':
         for label, ds in datasets_dict.items():
             print(f"Training for {label}")
             eff_plots[label] = run_training(args=args, datasets=ds, label=label)
-    
-            x_opts = ['eta', 'pt', 'nVtx', 'validHits']
+
+        x_opts = ['eta', 'pt', 'nVtx']
         eff_plots = transform_plots(eff_plots, x_opts)
         for x in x_opts:
             plot(
@@ -342,7 +285,8 @@ if __name__=='__main__':
                 ymin=0,
                 ymax=1.01,
                 ylabel='Efficiency',
-                out_path=OUT_PATH
+                out_path=OUT_PATH,
+                'prefix': 'DNN_'
             )
 
     tock = time.time()
