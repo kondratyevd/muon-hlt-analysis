@@ -166,7 +166,8 @@ def plot(data, **kwargs):
     ylabel = kwargs.pop('ylabel', None)
     title = kwargs.pop('title', None)
     histtype = kwargs.pop('histtype', 'errorbar')
-    out_path = '/home/dkondra/hlt-plotting/plots/'
+    out_path = kwargs.pop('out_path', './')
+
     # Prepare canvas
     fig = plt.figure()
     plt.rcParams.update({'font.size': 12})

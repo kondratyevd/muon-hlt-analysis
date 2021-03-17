@@ -8,11 +8,13 @@ import logging
 logger = logging.getLogger("distributed.utils_perf")
 logger.setLevel(logging.ERROR)
 
+from datasets.datasets_phase2_DY_L2vsL1TkMu import datasets
 
-from datasets.datasets_phase2_pu140_vh import datasets
 from tools import build_dataset, preprocess, plot
 
 from utils import *
+
+OUT_PATH = '/home/dkondra/muon-hlt-analysis/plots/'
 
 
 def plot_efficiencies(df, only_default_and_best=False):
@@ -20,7 +22,7 @@ def plot_efficiencies(df, only_default_and_best=False):
     x_opts = ['eta', 'pt', 'nVtx']#, 'validHits']
     bin_opts = {
         'eta': regular(20, -2.4, 2.4),
-        'pt': np.array([5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]),#regular(50, 0, 100),
+        'pt': np.array([5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]),
         'nVtx': regular(50, 0, 200),
         'validHits': regular(30, 0, 60),
     }
@@ -71,7 +73,8 @@ def plot_efficiencies(df, only_default_and_best=False):
             out_name=out_name,
             ymin=0.,
             ymax=1.01,
-            ylabel='Efficiency'
+            ylabel='Efficiency',
+            out_path=OUT_PATH
         )
 
 
@@ -101,6 +104,7 @@ def plot_distributions(df, variables, prefix=''):
             out_name=f'{prefix}_{v}',
             histtype='step',
             title=f'Avg. {v}',
+            out_path=OUT_PATH
         )
 
 
@@ -110,79 +114,7 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     tick = time.time()
-    datasets_ = [
-        {
-            'name':'1HB',
-            'path':'/mnt/hadoop/store/user/dkondrat/muonHLT_phase2_DYToLL_noPU_L1TkMu_fromArnab_1HB/DYToLL_M-50_TuneCP5_14TeV-pythia8/muonHLT_phase2_DYToLL_noPU_L1TkMu_fromArnab_1HB/210310_154141/0000/muon*root'
-        },
-        {
-            'name':'1HL',
-            'path':'/mnt/hadoop/store/user/dkondrat/muonHLT_phase2_DYToLL_noPU_L1TkMu_fromArnab_1HL/DYToLL_M-50_TuneCP5_14TeV-pythia8/muonHLT_phase2_DYToLL_noPU_L1TkMu_fromArnab_1HL/210310_153340/0000/muon*root'
-        },
-        {
-            'name':'2HL',
-            'path':'/mnt/hadoop/store/user/dkondrat/muonHLT_phase2_DYToLL_noPU_L1TkMu_fromArnab_2HL/DYToLL_M-50_TuneCP5_14TeV-pythia8/muonHLT_phase2_DYToLL_noPU_L1TkMu_fromArnab_2HL/210310_153434/0000/muon*root'
-        },
-        {
-            'name':'3HL',
-            'path':'/mnt/hadoop/store/user/dkondrat/muonHLT_phase2_DYToLL_noPU_L1TkMu_fromArnab_3HL/DYToLL_M-50_TuneCP5_14TeV-pythia8/muonHLT_phase2_DYToLL_noPU_L1TkMu_fromArnab_3HL/210310_153515/0000/muon*root'
-        },
-        {
-            'name':'4HL',
-            'path':'/mnt/hadoop/store/user/dkondrat/muonHLT_phase2_DYToLL_noPU_L1TkMu_fromArnab_4HL/DYToLL_M-50_TuneCP5_14TeV-pythia8/muonHLT_phase2_DYToLL_noPU_L1TkMu_fromArnab_4HL/210310_153557/0000/muon*root'
-        },
-        {
-            'name':'5HL',
-            'path':'/mnt/hadoop/store/user/dkondrat/muonHLT_phase2_DYToLL_noPU_L1TkMu_fromArnab_5HL/DYToLL_M-50_TuneCP5_14TeV-pythia8/muonHLT_phase2_DYToLL_noPU_L1TkMu_fromArnab_5HL/210310_153651/0000/muon*root'
-        },
 
-        {
-            'name':'default',
-            'path':'/mnt/hadoop/store/user/dkondrat/muonHLT_phase2_DYToLL_noPU_L1TkMu_fromArnab_default/DYToLL_M-50_TuneCP5_14TeV-pythia8/muonHLT_phase2_DYToLL_noPU_L1TkMu_fromArnab_default/210310_153743/0000/muon*root'
-        },
-    ]
-    
-    datasets = [
-        #{
-        #    'name':'PU 140: OI from L2',
-        #    'path':'/mnt/hadoop/store/user/dkondrat/muonHLT_phase2_DYToLL_PU140_OIFromL2_default/DYToLL_M-50_TuneCP5_14TeV-pythia8/muonHLT_phase2_DYToLL_PU140_OIFromL2_default/210317_010510/0000/muon*root',
-        #},
-        #{
-        #    'name':'PU 140: OI from L1TkMu',
-        #    'path':'/mnt/hadoop/store/user/dkondrat/muonHLT_phase2_DYToLL_PU140_OIFromL1TkMu_default/DYToLL_M-50_TuneCP5_14TeV-pythia8/muonHLT_phase2_DYToLL_PU140_OIFromL1TkMu_default/210317_010703/0000/muon*root',
-        #    'collection': 'L1Tkmuons'
-        #},
-        #{
-        #    'name':'PU 140: OI from L2 - VectorHits',
-        #    'path':'/mnt/hadoop/store/user/dkondrat/muonHLT_phase2_DYToLL_PU140_OIFromL2_default_VHenabled/DYToLL_M-50_TuneCP5_14TeV-pythia8/muonHLT_phase2_DYToLL_PU140_OIFromL2_default_VHenabled/210317_015040/0000/muon*root'
-        #},
-        {
-            'name':'PU 140: OI from L1TkMu - VectorHits',
-            'path':'/mnt/hadoop/store/user/dkondrat/muonHLT_phase2_DYToLL_PU140_OIFromL1TkMu_default_VHenabled/DYToLL_M-50_TuneCP5_14TeV-pythia8/muonHLT_phase2_DYToLL_PU140_OIFromL1TkMu_default_VHenabled/210317_052649//0000/muon*root',
-            'collection': 'L1Tkmuons'
-        },
-
-        #{
-        #    'name':'no PU: OI from L2',
-        #    'path':'/mnt/hadoop/store/user/dkondrat/muonHLT_phase2_DYToLL_noPU_OIFromL2_default/DYToLL_M-50_TuneCP5_14TeV-pythia8/muonHLT_phase2_DYToLL_noPU_OIFromL2_default/210317_033103/0000/muon*root',
-        #},
-        #{
-        #    'name':'no PU: OI from L1TkMu',
-        #    'path':'/mnt/hadoop/store/user/dkondrat/muonHLT_phase2_DYToLL_noPU_OIFromL1TkMu_default/DYToLL_M-50_TuneCP5_14TeV-pythia8/muonHLT_phase2_DYToLL_noPU_OIFromL1TkMu_default/210317_050826/0000/muon*root',
-        #    'collection': 'L1Tkmuons'
-        #},
-        #{
-        #    'name':'no PU: OI from L2 - VectorHits',
-        #    'path':'/mnt/hadoop/store/user/dkondrat/muonHLT_phase2_DYToLL_noPU_OIFromL2_default_VHenabled/DYToLL_M-50_TuneCP5_14TeV-pythia8/muonHLT_phase2_DYToLL_noPU_OIFromL2_default_VHenabled/210317_033132/0000/muon*root'
-        #},
-        {
-            'name':'no PU: OI from L1TkMu - VectorHits',
-            'path':'/mnt/hadoop/store/user/dkondrat/muonHLT_phase2_DYToLL_noPU_OIFromL1TkMu_default_VHenabled/DYToLL_M-50_TuneCP5_14TeV-pythia8/muonHLT_phase2_DYToLL_noPU_OIFromL1TkMu_default_VHenabled/210317_050855/0000/muon*root',
-            'collection': 'L1Tkmuons'
-        },
-
-    ]
-    
     # Get data for efficiency plots
     if args.dask:
         n = 8
@@ -203,6 +135,7 @@ if __name__=='__main__':
     
     df = preprocess(rets, overlap_events=False)
     print(df)
+
     #plot_distributions(df, ['eta'], prefix='seed')
 
     plot_efficiencies(df, only_default_and_best=False)

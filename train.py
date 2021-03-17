@@ -1,11 +1,10 @@
 import os, sys
 import argparse
 import time
-#from datasets.datasets_phase2 import datasets
-#from datasets.datasets_run2_1 import datasets, datasets_dict
-#from datasets.datasets_run2_tt2l2nu import datasets
-#from datasets.datasets_run2_ttsemilept import datasets
+
+#from datasets.datasets_run2_1to7seeds import datasets, datasets_dict
 from datasets.datasets_different import datasets, datasets_dict
+
 from tqdm import tqdm
 import glob
 import uproot as uproot
@@ -30,6 +29,9 @@ from tensorflow.python.keras.layers import Dropout
 from tensorflow.python.keras.layers import BatchNormalization
 
 import cmsml
+
+OUT_PATH = '/home/dkondra/muon-hlt-analysis/plots/'
+MODEL_PATH = '/home/dkondra/muon-hlt-analysis/models/'
 
 def train(df, save=False, model_path='', opt_label=''):
     ignore_lbl = 'default'
@@ -117,7 +119,6 @@ def train(df, save=False, model_path='', opt_label=''):
 
 
 def plot_loss(history, label):
-    out_path = '/home/dkondra/hlt-plotting/plots/'
     fig = plt.figure()
     fig.clf()
     plt.rcParams.update({'font.size': 10})
@@ -128,7 +129,7 @@ def plot_loss(history, label):
     plt.ylabel('loss')
     plt.xlabel('epoch')
     plt.legend(['train', 'val'], loc='upper left')
-    out = f'{out_path}/loss_{label}'
+    out = f'{OUT_PATH}/loss_{label}'
     fig.savefig(out)
     print(f'Saved loss plot: {out}')
 
@@ -136,7 +137,7 @@ def plot_efficiencies(df, only_default_and_best=False, opt_label='', save=True):
     x_opts = ['eta', 'pt', 'nVtx', 'validHits']
     bin_opts = {
         'eta': regular(20, -2.4, 2.4),
-        'pt': regular(50, 0, 100),
+        'pt': np.array([5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]),,
         'nVtx': regular(50, 0, 100),
         'validHits': regular(30, 0, 60),
     }
@@ -194,7 +195,8 @@ def plot_efficiencies(df, only_default_and_best=False, opt_label='', save=True):
                 out_name=out_name,
                 ymin=0,
                 ymax=1.01,
-                ylabel='L3(OI)/L2 efficiency',
+                ylabel='Efficiency',
+                out_path=OUT_PATH
             )
     return plotting_data
 
@@ -204,7 +206,7 @@ def plot_strategies(df):
     x_opts = l2_branches
     bin_opts = {
         'eta': regular(20, -2.4, 2.4),
-        'pt': regular(50, 0, 100),
+        'pt': np.array([5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]),,
 #        'nVtx': regular(10, 0, 10),
         'validHits': regular(30, 0, 60),
         'chi2': regular(50, 0, 5),
@@ -260,6 +262,7 @@ def plot_strategies(df):
             data,
             out_name=out_name,
             ylabel='',
+            out_path=OUT_PATH
         )
 
         
@@ -306,8 +309,7 @@ def run_training(**kwargs):
     df = preprocess(rets)
     print(df)
     if args.train:
-        model_path = '/home/dkondra/hlt-plotting/models/'
-        df = train(df, save=True, model_path=model_path, opt_label=label)
+        df = train(df, save=True, model_path=MODEL_PATH, opt_label=label)
     
     eff_plots = plot_efficiencies(df, only_default_and_best=True, opt_label=label, save=False)
     
@@ -339,7 +341,8 @@ if __name__=='__main__':
                 out_name=eff_plots[x]['out_name'],
                 ymin=0,
                 ymax=1.01,
-                ylabel='L3(OI)/L2 efficiency',
+                ylabel='Efficiency',
+                out_path=OUT_PATH
             )
 
     tock = time.time()
