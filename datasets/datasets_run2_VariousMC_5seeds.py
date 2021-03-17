@@ -1,8 +1,8 @@
-from datasets_run2_DY_1to7seeds import datasets_dict as ds_dy
+from datasets.datasets_run2_DY_1to7seeds import datasets_dict as ds_dy
 ds_dy = ds_dy['5 seeds']
-from datasets_run2_TT2L2Nu_5seeds import datasets as ds_tt2l2nu
-from datasets_run2_TTSemiLept_5seeds import datasets as ds_ttsemilept
-from datasets_run2_QCD_5seeds import datasets as ds_qcd
+from datasets.datasets_run2_TT2L2Nu_5seeds import datasets as ds_tt2l2nu
+from datasets.datasets_run2_TTSemiLept_5seeds import datasets as ds_ttsemilept
+from datasets.datasets_run2_QCD_5seeds import datasets as ds_qcd
 
 default_dy = {
 "name": "default Drell-Yan", 

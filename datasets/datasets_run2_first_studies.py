@@ -148,9 +148,9 @@ datasets = [
 #run_5HBd_0HB_0HLIP_0HLMuS,
 run_default_SF2,
 run_default_SF3,
-run_default_SF4,
-run_default_SF5,
-run_default_SF7,
-run_default_SF10,
+#run_default_SF4,
+#run_default_SF5,
+#run_default_SF7,
+#run_default_SF10,
 run_default,
 ]
