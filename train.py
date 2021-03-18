@@ -2,14 +2,14 @@ import os, sys
 import argparse
 import time
 
-#from datasets.datasets_run2_1to7seeds import datasets, datasets_dict
+#from datasets.datasets_run2_DY_1to7seeds import datasets, datasets_dict
 #from datasets.datasets_run2_VariousMC_5seeds import datasets, datasets_dict
-from datasets.datasets_run2_first_studies import datasets
-datasets_dict = {ds['name']:[ds] for ds in datasets}
+#from datasets.datasets_run2_first_studies import datasets
+from datasets.datasets_phase2_DYPU140_5seeds_OIFromL2 import datasets, datasets_dict
+#datasets_dict = {ds['name']:[ds] for ds in datasets}
 
 from tqdm import tqdm
 import glob
-import uproot as uproot
 import numpy as np
 import matplotlib.pyplot as plt
 import mplhep as hep
@@ -45,13 +45,14 @@ def train(df, **kwargs):
     truth_columns = []
     prediction_columns = []
     for c in df.columns:
-        truth_columns.append(c)
-        prediction_columns.append(c.replace('pass', 'pred'))
+        if ('pass' in c):
+            truth_columns.append(c)
+            prediction_columns.append(c.replace('pass', 'pred'))
     for c in prediction_columns:
         df[c] = -1
-    if len(prediction_columns)==1:
-        return df, prediction_columns[0]
-    elif len(prediction_columns)<1:
+    if len(truth_columns)==1:
+        return df, truth_columns[0]
+    elif len(truth_columns)<1:
         return df, None
 
     nfolds = 4
@@ -127,71 +128,6 @@ def train(df, **kwargs):
     df[pred_label] = df.lookup(df.index, df.best_guess_label)
     return df, pred_label
 
-
-def plot_strategies(df):
-    ignore = 'default'
-    x_opts = l2_branches
-    bin_opts = {
-        'eta': regular(20, -2.4, 2.4),
-        'pt': np.array([5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]),
-#        'nVtx': regular(10, 0, 10),
-        'validHits': regular(30, 0, 60),
-        'chi2': regular(50, 0, 5),
-        'err0_IP': regular(50, 0, 0.015),
-        'err1_IP': regular(50, 0, 0.02),
-        'err2_IP': regular(50, 0, 0.05),
-        'err3_IP': regular(50, 0.099, 0.1),
-        'err4_IP': regular(50, 0, 5),
-        'tsos_IP_pt': regular(50, 0, 100),
-        'tsos_IP_eta': regular(50, -2.4, 2.4),
-        'tsos_IP_pt_eta': regular(50, -2.4, 2.4),
-        'err0_MuS': regular(50, 0, 0.015),
-        'err1_MuS': regular(50, 0, 0.05),
-        'err2_MuS': regular(50, 0, 0.25),
-        'err3_MuS': regular(50, 0, 10),
-        'err4_MuS': regular(50, 0, 15),
-        'tsos_MuS_pt': regular(50, 0, 100),
-        'tsos_MuS_eta': regular(50, -2.4, 2.4),
-        'tsos_MuS_pt_eta': regular(50, -2.4, 2.4),
-    }
-    strategies = []
-    for c in df.columns:
-        if ('pass' in c) and (c!='pass: default (Run 2)') and (c!='pass: default, dynamic SF (Run 2)'):
-            strategies.append(c)
-    #strategies.append('DNN recommendation')
-    for x in x_opts:
-        out_name = f'DNN_strategy_vs_{x}'
-        if x in bin_opts.keys():
-            bins = bin_opts[x]
-        elif x in df.columns:
-            bins = regular(50, df.loc[df[x]>-999., x].min(), df[x].max())
-        else:
-            continue
-        values = {}
-        errors_lo = {}
-        errors_hi = {}
-        for s in strategies:
-            values[s] = np.array([])
-            errors_lo[s] = np.array([])
-            errors_hi[s] = np.array([])
-            for ibin in range(len(bins)-1):
-                bin_min = bins[ibin]
-                bin_max = bins[ibin+1]
-                cut = (df[x] >= bin_min) & (df[x] < bin_max) & (df.best_guess_label==s)
-                value = df[cut].shape[0]
-                values[s] = np.append(values[s], value)
-        data = {
-            'xlabel': x,
-            'edges': bins,
-            'values': values,
-        }
-        plot(
-            data,
-            out_name=out_name,
-            ylabel='',
-            out_path=OUT_PATH
-        )
-
         
 def transform_plots(dicts, x_opts):
     out = {}
@@ -217,13 +153,13 @@ def run_training(**kwargs):
     label = kwargs.pop('label', 'test')
     # Get data for efficiency plots
     if args.dask:
-        n = 8
+        n = 22
         print(f'Using Dask with {n} local workers')
         client = dask.distributed.Client(
             processes=True,
             n_workers=n,
             threads_per_worker=1,
-            memory_limit='4GB'
+            memory_limit='2GB'
         )
         rets = client.gather(
             client.map(build_dataset, datasets_)
@@ -252,12 +188,13 @@ def run_training(**kwargs):
         'opt_label': label,
         'draw': False,
         'out_path': OUT_PATH,
-        'ymin': 0.8
+        'ymin': 0.8,
+        'prefix': 'DNN_5seeds_'
     }
     eff_plots = plot_efficiencies(df, **pars)
     
-#    if args.train:
-#        plot_strategies(df)
+    if args.train and label!='default':
+        plot_strategies(df, out_path=OUT_PATH)
     return eff_plots
 
 if __name__=='__main__':
@@ -267,8 +204,15 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     tick = time.time()
+    
+    #datasets_dict = {k:v for k,v in datasets_dict.items() if ((k!='2 seeds')and(k!='7 seeds'))}
+    #datasets_dict = {k:v for k,v in datasets_dict.items() if ((k!='1 seed'))}
 
     #run_training(args=args, datasets=datasets)
+
+    if len(datasets_dict)==0:
+        print("Nothing to process")
+        sys.exit()
 
     if True:
         eff_plots = {}
@@ -282,11 +226,11 @@ if __name__=='__main__':
             plot(
                 eff_plots[x],
                 out_name=eff_plots[x]['out_name'],
-                ymin=0,
+                ymin=0.7,
                 ymax=1.01,
                 ylabel='Efficiency',
                 out_path=OUT_PATH,
-                'prefix': 'DNN_'
+                add_text=True
             )
 
     tock = time.time()

@@ -6,7 +6,8 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 import mplhep as hep
-
+hep.set_style(hep.style.CMS)
+#hep.set_style("CMSTex")
 
 from utils import *
 
@@ -32,6 +33,7 @@ seed_branches = [
     'dR_pos', 'dR_mom'
 ]
 
+
 def build_dataset(dataset, progress_bar=False, study_seeds=False):
     label = dataset['name']
     path = dataset['path']
@@ -51,9 +53,11 @@ def build_dataset(dataset, progress_bar=False, study_seeds=False):
         i+=1
         #if i==2:
         #    break
+
         tree = uproot.open(fname)['muonNtuples']['muonTree']['event']
         nVtx = tree['nVtx'].array()
         event = tree['eventNumber'].array()
+
         if len(event)==0:
             continue
 
@@ -62,9 +66,8 @@ def build_dataset(dataset, progress_bar=False, study_seeds=False):
         gen_muons = {}
         seeds = {}
 
-        #ref_cut = (tree[f'{ref_name}.validHits'].array()>20)&(tree[f'{ref_name}.pt'].array()>10)
-        #ref_cut = (tree[f'{ref_name}.pt'].array()>24)
-        ref_cut = (tree[f'{ref_name}.pt'].array()>0)
+        #ref_cut = (tree[f'{ref_name}.pt'].array()>0)
+        ref_cut = (tree[f'{ref_name}.pt'].array()>24)
 
         if 'L2' in ref_name:
             ref_branches = l2_branches
@@ -160,8 +163,9 @@ def plot_efficiencies(df, **kwargs):
     x_opts = ['eta', 'pt', 'nVtx']
     bin_opts = {
         'eta': regular(20, -2.4, 2.4),
-        'pt': np.array([5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]),
-        'nVtx': regular(50, 0, 200),
+        #'pt': np.array([5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]),
+        'pt': np.array([24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]),
+        'nVtx': regular(25, 100, 125), #regular(50, 0, 200),
     }
 
     strategies = cols_to_plot
@@ -220,7 +224,8 @@ def plot_efficiencies(df, **kwargs):
                 ymin=ymin,
                 ymax=1.01,
                 ylabel='Efficiency',
-                out_path=out_path
+                out_path=out_path,
+                add_text=True
             )
     return plotting_data
 
@@ -255,6 +260,72 @@ def plot_distributions(df, variables, prefix=''):
         )
 
 
+def plot_strategies(df, out_path):
+    ignore = 'default'
+    x_opts = l2_branches
+    bin_opts = {
+        'eta': regular(20, -2.4, 2.4),
+        'pt': np.array([5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]),
+#        'nVtx': regular(10, 0, 10),
+        'validHits': regular(30, 0, 60),
+        'chi2': regular(50, 0, 5),
+        'err0_IP': regular(50, 0, 0.015),
+        'err1_IP': regular(50, 0, 0.02),
+        'err2_IP': regular(50, 0, 0.05),
+        'err3_IP': regular(50, 0.099, 0.1),
+        'err4_IP': regular(50, 0, 5),
+        'tsos_IP_pt': regular(50, 0, 100),
+        'tsos_IP_eta': regular(50, -2.4, 2.4),
+        'tsos_IP_pt_eta': regular(50, -2.4, 2.4),
+        'err0_MuS': regular(50, 0, 0.015),
+        'err1_MuS': regular(50, 0, 0.05),
+        'err2_MuS': regular(50, 0, 0.25),
+        'err3_MuS': regular(50, 0, 10),
+        'err4_MuS': regular(50, 0, 15),
+        'tsos_MuS_pt': regular(50, 0, 100),
+        'tsos_MuS_eta': regular(50, -2.4, 2.4),
+        'tsos_MuS_pt_eta': regular(50, -2.4, 2.4),
+    }
+    strategies = []
+    for c in df.columns:
+        if ('pass' in c):
+            strategies.append(c)
+    #strategies.append('DNN recommendation')
+    for x in x_opts:
+        out_name = f'DNN_strategy_vs_{x}'
+        if x in bin_opts.keys():
+            bins = bin_opts[x]
+        elif x in df.columns:
+            bins = regular(50, df.loc[df[x]>-999., x].min(), df[x].max())
+        else:
+            continue
+        values = {}
+        errors_lo = {}
+        errors_hi = {}
+        for s in strategies:
+            values[s] = np.array([])
+            errors_lo[s] = np.array([])
+            errors_hi[s] = np.array([])
+            for ibin in range(len(bins)-1):
+                bin_min = bins[ibin]
+                bin_max = bins[ibin+1]
+                cut = (df[x] >= bin_min) & (df[x] < bin_max) & (df.best_guess_label==s)
+                value = df[cut].shape[0]
+                values[s] = np.append(values[s], value)
+        data = {
+            'xlabel': x,
+            'edges': bins,
+            'values': values,
+        }
+        plot(
+            data,
+            out_name=out_name,
+            ylabel='',
+            out_path=out_path,
+            legend_size='small'
+        )
+
+
 def plot(data, **kwargs):
     out_name = kwargs.pop('out_name', 'test')
     ymin = kwargs.pop('ymin', None)
@@ -263,6 +334,8 @@ def plot(data, **kwargs):
     title = kwargs.pop('title', None)
     histtype = kwargs.pop('histtype', 'errorbar')
     out_path = kwargs.pop('out_path', './')
+    add_text = kwargs.pop('add_text', False)
+    legend_size = kwargs.pop('legend_size', 'large')
 
     # Prepare canvas
     fig = plt.figure()
@@ -299,19 +372,33 @@ def plot(data, **kwargs):
         )
 
     # Draw line at 1.0
-    plt1.plot([bins[0], bins[-1]], [1., 1.], 'b--', linewidth=0.5, zorder=-1)
+    #plt1.plot([bins[0], bins[-1]], [1., 1.], 'b--', linewidth=0.5, zorder=-1)
 
     # Styling
     lbl = hep.cms.label(ax=plt1, data=False, paper=False, year='')
     if (ymin is not None) and (ymax is not None):
         plt1.set_ylim(ymin, ymax)
     xlabel = data['xlabel']
+
     if xlabel=='pt':
-        xlabel = 'pT, GeV'
-    plt1.set_xlabel(xlabel)
-    plt1.set_ylabel(ylabel)
+        if add_text:
+            plt1.text(118, 0.72, '$p_T > 24 GeV$', fontsize=16)
+        xlabel = '$p_{T}, [GeV]$'
+    elif xlabel=='eta':
+        if add_text:
+            plt1.text(0.95, 0.77, '$p_T > 24 GeV$', fontsize=16)
+        xlabel = '$\eta$'
+    elif xlabel=='nVtx':
+        if add_text:
+            plt1.text(101, 0.77, '$p_T > 24 GeV$', fontsize=16)
+
+    plt1.set_xlabel(xlabel, fontsize=16)
+    plt1.set_ylabel(ylabel, fontsize=16)
     plt1.set_title(title)
-    plt1.legend(prop={'size': 'xx-small'})
+    plt1.tick_params(axis='both', which='major', labelsize=16)
+    
+    leg = plt1.legend(prop={'size': legend_size})
+    leg.get_frame().set_linewidth(0.0)
 
     try:
         os.mkdir(out_path)
