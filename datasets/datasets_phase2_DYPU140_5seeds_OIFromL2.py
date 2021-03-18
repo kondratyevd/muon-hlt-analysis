@@ -4,7 +4,7 @@
 #}
 
 default = {
-    'name': 'default (Run 2)',
+    'name': 'default (Run 2 strategy)',
     'path': '/mnt/hadoop/store/user/dkondrat/muonHLT_phase2_DYToLL_PU140_default/DYToLL_M-50_TuneCP5_14TeV-pythia8/muonHLT_phase2_DYToLL_PU140_default/210208_163835/0000/muonNtuple_phase2_MC_*'
 }
 
@@ -94,26 +94,30 @@ run_5HB_0HLIP_0HLMuS = {
 }
 
 datasets = [
-#run_0HB_0HLIP_5HLMuS,
-#run_0HB_1HLIP_4HLMuS,
-#run_0HB_2HLIP_3HLMuS,
-#run_0HB_3HLIP_2HLMuS,
-#run_0HB_4HLIP_1HLMuS,
+run_0HB_0HLIP_5HLMuS,
+run_0HB_1HLIP_4HLMuS,
+run_0HB_2HLIP_3HLMuS,
+run_0HB_3HLIP_2HLMuS,
+run_0HB_4HLIP_1HLMuS,
 run_0HB_5HLIP_0HLMuS,
-#run_1HB_0HLIP_4HLMuS,
-#run_1HB_1HLIP_3HLMuS,
-#run_1HB_2HLIP_2HLMuS,
-#run_1HB_3HLIP_1HLMuS,
-#run_1HB_4HLIP_0HLMuS,
-#run_2HB_0HLIP_3HLMuS,
-#run_2HB_1HLIP_2HLMuS,
-#run_2HB_2HLIP_1HLMuS,
-#run_2HB_3HLIP_0HLMuS,
-#run_3HB_0HLIP_2HLMuS,
-#run_3HB_1HLIP_1HLMuS,
-#run_3HB_2HLIP_0HLMuS,
-#run_4HB_0HLIP_1HLMuS,
-#run_4HB_1HLIP_0HLMuS,
+run_1HB_0HLIP_4HLMuS,
+run_1HB_1HLIP_3HLMuS,
+run_1HB_2HLIP_2HLMuS,
+run_1HB_3HLIP_1HLMuS,
+run_1HB_4HLIP_0HLMuS,
+run_2HB_0HLIP_3HLMuS,
+run_2HB_1HLIP_2HLMuS,
+run_2HB_2HLIP_1HLMuS,
+run_2HB_3HLIP_0HLMuS,
+run_3HB_0HLIP_2HLMuS,
+run_3HB_1HLIP_1HLMuS,
+run_3HB_2HLIP_0HLMuS,
+run_4HB_0HLIP_1HLMuS,
+run_4HB_1HLIP_0HLMuS,
 run_5HB_0HLIP_0HLMuS,
-default
 ]
+
+datasets_dict = {
+    '5 seeds': datasets,
+    'default': [default]
+}
