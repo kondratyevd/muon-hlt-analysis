@@ -25,7 +25,7 @@ if __name__=='__main__':
 
     # Get data for efficiency plots
     if args.dask:
-        n = 8
+        n = min(23, len(datasets))
         print(f'Using Dask with {n} local workers')
         client = dask.distributed.Client(
             processes=True,
@@ -42,11 +42,10 @@ if __name__=='__main__':
             rets.append(build_dataset(ds, progress_bar=True))
     
     df = preprocess(rets, only_overlap_events=False)
-    print(df)
 
     #plot_distributions(df, ['eta'], prefix='seed')
 
-    plot_efficiencies(df, out_path=OUT_PATH, ymin=0.4)
+    plot_efficiencies(df, out_path=OUT_PATH, ymin=0.7)
 
     tock = time.time()
     print(f'Completed in {tock-tick} s.')

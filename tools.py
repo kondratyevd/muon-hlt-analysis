@@ -11,6 +11,9 @@ hep.set_style(hep.style.CMS)
 
 from utils import *
 
+PT_CUT = 0
+#PT_CUT = 24
+
 l1_branches = ['pt', 'eta', 'phi']
 
 l2_branches = [
@@ -25,7 +28,9 @@ l2_branches = [
     'tsos_IP_valid', 'tsos_MuS_valid',
 ]
 
-l3_branches = gen_branches = ['pt', 'eta', 'phi']
+l3_branches = ['pt', 'eta', 'phi']
+off_branches = ['pt', 'eta', 'phi', 'isTight']
+gen_branches = ['pt', 'eta', 'phi', 'pdgId', 'status']
 
 seed_branches = [
     'pt', 'eta', 'phi', 'hitBased', 'eta_pos', 'layerNum',
@@ -40,10 +45,12 @@ def build_dataset(dataset, progress_bar=False, study_seeds=False):
     ref_name = dataset.pop('reference', 'L2muons')
     trg_name = dataset.pop('target', 'hltOImuons')
     gen_name = 'genParticles'
+    off_name = 'muons'
 
     all_ref = MuCollection()
     all_trg = MuCollection()
     all_seeds = MuCollection()
+    all_off = MuCollection()
     
     print(f'Processing {label}')
 
@@ -51,7 +58,7 @@ def build_dataset(dataset, progress_bar=False, study_seeds=False):
     i = 0
     for fname in loop:
         i+=1
-        #if i==2:
+        #if i==5:
         #    break
 
         tree = uproot.open(fname)['muonNtuples']['muonTree']['event']
@@ -64,11 +71,25 @@ def build_dataset(dataset, progress_bar=False, study_seeds=False):
         ref_muons = {}
         trg_muons = {}
         gen_muons = {}
+        off_muons = {}
         seeds = {}
 
-        #ref_cut = (tree[f'{ref_name}.pt'].array()>0)
-        ref_cut = (tree[f'{ref_name}.pt'].array()>24)
-
+        ref_cut = (tree[f'{ref_name}.pt'].array()>0)
+        gen_cut = (abs(tree[f'{gen_name}.pdgId'].array())==13)&(tree[f'{gen_name}.status'].array()==1)
+        off_iso = tree[f'{off_name}.chargedDep_dR04'].array()
+        off_iso_add = (
+            tree[f'{off_name}.photonDep_dR04'].array() +
+            tree[f'{off_name}.neutralDep_dR04'].array() -
+            0.5*tree[f'{off_name}.puPt_dR04'].array()
+        )
+        off_iso = ak.where(off_iso_add>0, off_iso+off_iso_add, off_iso)
+        off_iso = off_iso /  tree[f'{off_name}.pt'].array()
+        off_cut = (
+            (tree[f'{off_name}.pt'].array()>PT_CUT)
+            & (abs(tree[f'{off_name}.eta'].array())<2.4)
+            & (tree[f'{off_name}.isTight'].array()>0)
+            & (off_iso < 0.15)
+        )
         if 'L2' in ref_name:
             ref_branches = l2_branches
         elif 'L1' in ref_name:
@@ -83,7 +104,9 @@ def build_dataset(dataset, progress_bar=False, study_seeds=False):
         for branch in trg_branches:
             trg_muons[branch] = tree[f'{trg_name}.{branch}'].array()
         for branch in gen_branches:
-            gen_muons[branch] = tree[f'{gen_name}.{branch}'].array()
+            gen_muons[branch] = tree[f'{gen_name}.{branch}'].array()[gen_cut]
+        for branch in off_branches:
+            off_muons[branch] = tree[f'{off_name}.{branch}'].array()[off_cut]
 
         ref_muons.update({
             'nVtx': ak.broadcast_arrays(nVtx, tree[f'{ref_name}.pt'].array()[ref_cut])[0],
@@ -97,13 +120,25 @@ def build_dataset(dataset, progress_bar=False, study_seeds=False):
             'nVtx': ak.broadcast_arrays(nVtx, tree[f'{gen_name}.pt'].array())[0],
             'event': ak.broadcast_arrays(event, tree[f'{gen_name}.pt'].array())[0],
         })
+        off_muons.update({
+            'nVtx': ak.broadcast_arrays(nVtx, tree[f'{off_name}.pt'].array()[off_cut])[0],
+            'event': ak.broadcast_arrays(event, tree[f'{off_name}.pt'].array()[off_cut])[0],
+        })
 
         refs = MuCollection(**ref_muons)
         trgs = MuCollection(**trg_muons)
+        #gens = MuCollection(**gen_muons)
+        offs = MuCollection(**off_muons)
+
         has_matched = match(refs, trgs, dR_cutoff=0.3)
+        has_matched_offline, closest_offline = match(refs, offs, dR_cutoff=0.3, return_match_properties=True)
         ref_muons[f'pass: {label}'] = has_matched
+        ref_muons['has_matched_offline'] = has_matched_offline
+        ref_muons['offline_pt'] = closest_offline['pt']
+        ref_muons['offline_eta'] = closest_offline['eta']
+        ref_muons['offline_phi'] = closest_offline['phi']
         all_ref += MuCollection(**ref_muons)
-        all_trg += MuCollection(**trg_muons)
+        #all_trg += MuCollection(**trg_muons)
         
         if study_seeds:
             seed_cut = (tree['seeds.hitBased'].array()==0)&(tree['seeds.layerNum'].array()==0)
@@ -127,28 +162,43 @@ def preprocess(rets, only_overlap_events=True):
     df = pd.DataFrame()
     for ret in rets:
         for label, data in ret.items():
+            df_ = ak.to_pandas(getattr(data, 'event'))
+            df_['event'] = ak.to_pandas(getattr(data, 'event'))
+            df = pd.concat([df, df_])
+
+    df.reset_index(inplace=True)
+    df = df.drop_duplicates(subset=['event','subentry'])
+    df.set_index(['event','subentry'], inplace=True)
+    for ret in rets:
+        for label, data in ret.items():
             attrs = [a for a in dir(data) if not a.startswith('__') and not callable(getattr(data, a))]
-            if len(df)==0:
-                df = ak.to_pandas(getattr(data, 'event'))
-                df['event'] = ak.to_pandas(getattr(data, 'event'))
-                df.reset_index(inplace=True)
-                df.set_index(['event','subentry'], inplace=True)
             for a in attrs:
-                if (a not in df.columns) and (a!='event'):
+                if (a!='event'):
+                    if 'L1' in label:
+                        prefix = 'L1'
+                    else:
+                        prefix = ''
                     df_ = ak.to_pandas(getattr(data, 'event'))
                     df_['event'] = ak.to_pandas(getattr(data, 'event'))
                     df_[a] = ak.to_pandas(getattr(data, a))
                     df_.reset_index(inplace=True)
                     df_.set_index(['event','subentry'], inplace=True)
-                    df[a] = df_[a]
-
-    df = df.drop_duplicates(subset=['pt','eta','phi'])
+                    if ('pass' in a):
+                        df[a] = df_[a]
+                    else:
+                        df[prefix+a] = df_[a]
     if only_overlap_events:
+        to_drop = ['pt','eta','phi']
+        #to_drop = ['offline_pt','offline_eta','offline_phi']
+        df = df.drop_duplicates(subset=to_drop)
         df = df.dropna()
-    df['event'] = df['values']
-    for c in df.columns:
-        if 'pass' in c:
-            df[c] = df[c].fillna(-1).astype(int)
+        for c in df.columns:
+            if ('pass' in c):
+                df[c] = df[c].astype(int)
+    else:
+        df = df.fillna(-999)
+
+    df.reset_index(inplace=True)
     return df
 
 
@@ -160,13 +210,18 @@ def plot_efficiencies(df, **kwargs):
     out_path = kwargs.pop('out_path', './')
     ymin = kwargs.pop('ymin', 0.0)
 
-    x_opts = ['eta', 'pt', 'nVtx']
+    #x_opts = ['eta', 'pt', 'nVtx']
+    x_opts = ['offline_pt', 'offline_eta', 'nVtx']
     bin_opts = {
         'eta': regular(20, -2.4, 2.4),
-        #'pt': np.array([5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]),
-        'pt': np.array([24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]),
+        'offline_eta': regular(20, -2.4, 2.4),
+        'pt': np.array([5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]),
+        'offline_pt': np.array([5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]),
         'nVtx': regular(25, 100, 125), #regular(50, 0, 200),
     }
+
+    bin_opts['pt'] = bin_opts['pt'][bin_opts['pt']>PT_CUT]
+    bin_opts['offline_pt'] = bin_opts['offline_pt'][bin_opts['offline_pt']>PT_CUT]
 
     strategies = cols_to_plot
     if strategies==None:
@@ -186,15 +241,23 @@ def plot_efficiencies(df, **kwargs):
         for s in strategies:
             if s not in df.columns:
                 continue
+
             values[s] = np.array([])
             errors_lo[s] = np.array([])
             errors_hi[s] = np.array([])
             for ibin in range(len(bins)-1):
                 bin_min = bins[ibin]
                 bin_max = bins[ibin+1]
-                cut = (df[x] >= bin_min) & (df[x] < bin_max) & (df[s] >= 0)
+                if 'L1' in s:
+                    x_ = 'L1'+x
+                    om = (df.L1has_matched_offline == True)
+                else:
+                    x_ = x
+                    om = (df.has_matched_offline == True)
+                cut = om & (df[x_] >= bin_min) & (df[x_] < bin_max) & (df[s] >= 0)
+
                 total = df.loc[cut, s].shape[0]
-                passed = df.loc[cut, s].sum().sum()
+                passed = df.loc[cut, s].sum()
                 if total == 0:
                     value = err_lo = err_hi = 0
                 else:
@@ -239,11 +302,11 @@ def plot_distributions(df, variables, prefix=''):
             bins = regular(100, df.eta.min(), df.eta.max())
             values = []
             for ibin in range(len(bins)-1):
-                    bin_min = bins[ibin]
-                    bin_max = bins[ibin+1]
-                    cut = (df.eta >= bin_min) & (df.eta < bin_max)
-                    value = df.loc[cut, v].mean()
-                    values = np.append(values, value)
+                bin_min = bins[ibin]
+                bin_max = bins[ibin+1]
+                cut = (df.eta >= bin_min) & (df.eta < bin_max)
+                value = df.loc[cut, v].mean()
+                values = np.append(values, value)
         
 
         data = {
@@ -262,10 +325,12 @@ def plot_distributions(df, variables, prefix=''):
 
 def plot_strategies(df, out_path):
     ignore = 'default'
-    x_opts = l2_branches
+    x_opts = l2_branches+['offline_pt','offline_eta']
     bin_opts = {
         'eta': regular(20, -2.4, 2.4),
+        'offline_eta': regular(20, -2.4, 2.4),
         'pt': np.array([5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]),
+        'offline_pt': np.array([5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]),
 #        'nVtx': regular(10, 0, 10),
         'validHits': regular(30, 0, 60),
         'chi2': regular(50, 0, 5),
@@ -286,6 +351,9 @@ def plot_strategies(df, out_path):
         'tsos_MuS_eta': regular(50, -2.4, 2.4),
         'tsos_MuS_pt_eta': regular(50, -2.4, 2.4),
     }
+    bin_opts['pt'] = bin_opts['pt'][bin_opts['pt']>PT_CUT]
+    bin_opts['offline_pt'] = bin_opts['offline_pt'][bin_opts['offline_pt']>PT_CUT]
+
     strategies = []
     for c in df.columns:
         if ('pass' in c):
@@ -310,7 +378,11 @@ def plot_strategies(df, out_path):
                 bin_min = bins[ibin]
                 bin_max = bins[ibin+1]
                 cut = (df[x] >= bin_min) & (df[x] < bin_max) & (df.best_guess_label==s)
-                value = df[cut].shape[0]
+                cut_total = (df[x] >= bin_min) & (df[x] < bin_max)
+                if df[cut_total].shape[0]>0:
+                    value = float(df[cut].shape[0])/float(df[cut_total].shape[0])
+                else:
+                    value = 0.
                 values[s] = np.append(values[s], value)
         data = {
             'xlabel': x,
@@ -320,9 +392,9 @@ def plot_strategies(df, out_path):
         plot(
             data,
             out_name=out_name,
-            ylabel='',
+            ylabel='Probability',
             out_path=out_path,
-            legend_size='small'
+            legend_size='small',
         )
 
 
@@ -335,7 +407,10 @@ def plot(data, **kwargs):
     histtype = kwargs.pop('histtype', 'errorbar')
     out_path = kwargs.pop('out_path', './')
     add_text = kwargs.pop('add_text', False)
-    legend_size = kwargs.pop('legend_size', 'large')
+    legend_size = kwargs.pop('legend_size', 'medium')
+
+    if PT_CUT == 0:
+        add_text = False
 
     # Prepare canvas
     fig = plt.figure()
@@ -381,16 +456,21 @@ def plot(data, **kwargs):
     xlabel = data['xlabel']
 
     if xlabel=='pt':
-        if add_text:
-            plt1.text(118, 0.72, '$p_T > 24 GeV$', fontsize=16)
         xlabel = '$p_{T}, [GeV]$'
+    elif xlabel=='offline_pt':
+        xlabel = '$offline ~ p_{T}, [GeV]$'
     elif xlabel=='eta':
         if add_text:
-            plt1.text(0.95, 0.77, '$p_T > 24 GeV$', fontsize=16)
+            plt1.text(0.5, 0.77, '$offline~p_T > 24 GeV$', fontsize=16)
         xlabel = '$\eta$'
+    elif xlabel=='offline_eta':
+        if add_text:
+            plt1.text(0.5, 0.77, '$offline~p_T > 24 GeV$', fontsize=16)
+        xlabel = '$offline~\eta$'
+
     elif xlabel=='nVtx':
         if add_text:
-            plt1.text(101, 0.77, '$p_T > 24 GeV$', fontsize=16)
+            plt1.text(101, 0.77, '$offline~p_T > 24 GeV$', fontsize=16)
 
     plt1.set_xlabel(xlabel, fontsize=16)
     plt1.set_ylabel(ylabel, fontsize=16)
@@ -406,6 +486,8 @@ def plot(data, **kwargs):
         pass
 
     out = f'{out_path}/{out_name}.png'
+    fig.savefig(out)
+    out = f'{out_path}/{out_name}.pdf'
     fig.savefig(out)
     print(f'Saved: {out}')
     

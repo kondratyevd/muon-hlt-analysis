@@ -46,6 +46,7 @@ def match(first, second, **kwargs):
     if 'dR_cutoff' not in kwargs:
         raise Exception("Please specify dR cutoff for matching!")
     dR_cutoff = kwargs.pop('dR_cutoff', 0.3)
+    return_match_properties = kwargs.pop('return_match_properties', False)
     etas = ak.cartesian(
         {'first': first.eta, 'second': second.eta},
         axis=1,
@@ -57,7 +58,16 @@ def match(first, second, **kwargs):
         nested=True
     )
     dR, deta, dphi = delta_r(etas['first'], etas['second'], phis['first'], phis['second'])
-    return ak.any(dR < dR_cutoff, axis=2)
+    min_idx = ak.argmin(dR, axis=2)
+    match_properties = {
+        'pt': second.pt[min_idx],
+        'eta': second.eta[min_idx],
+        'phi': second.phi[min_idx],
+    }
+    if return_match_properties:
+        return ak.any(dR < dR_cutoff, axis=2), match_properties
+    else:
+        return ak.any(dR < dR_cutoff, axis=2)
 
 
 def delta_r(eta1, eta2, phi1, phi2):

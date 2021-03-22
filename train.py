@@ -76,11 +76,11 @@ def train(df, **kwargs):
         df_eval = df[eval_filter]
 
         x_train = df_train[features]
-        y_train = df_train[truth_columns]
+        y_train = df_train[truth_columns].astype(int)
         x_val = df_val[features]
-        y_val = df_val[truth_columns]
+        y_val = df_val[truth_columns].astype(int)
         x_eval = df_eval[features]
-        y_eval = df_eval[truth_columns]
+        y_eval = df_eval[truth_columns].astype(int)
         
         input_dim = len(features)
         output_dim = len(truth_columns)
@@ -139,21 +139,29 @@ def transform_plots(dicts, x_opts):
         }
     for label, plots in dicts.items():
         for x, data in plots.items():
-            out[x]['xlabel'] = data['xlabel']
-            out[x]['edges'] = data['edges']
-            out[x]['out_name'] = data['out_name']
-            out[x]['values'].update(data['values'])
-            out[x]['errors_lo'].update(data['errors_lo'])
-            out[x]['errors_hi'].update(data['errors_hi'])
+            try:
+                out[x]['xlabel'] = data['xlabel']
+                out[x]['edges'] = data['edges']
+                out[x]['out_name'] = data['out_name']
+                out[x]['values'].update(data['values'])
+                out[x]['errors_lo'].update(data['errors_lo'])
+                out[x]['errors_hi'].update(data['errors_hi'])
+            except:
+                print(f'Skip {x}')
     return out
 
 def run_training(**kwargs):
     args = kwargs.pop('args', None)
     datasets_ = kwargs.pop('datasets', datasets)
     label = kwargs.pop('label', 'test')
+    use_dask = args.dask
+
+    if len(datasets_)<3:
+        use_dask = False
+
     # Get data for efficiency plots
-    if args.dask:
-        n = 22
+    if use_dask:
+        n = min(23, len(datasets_))
         print(f'Using Dask with {n} local workers')
         client = dask.distributed.Client(
             processes=True,
@@ -191,6 +199,7 @@ def run_training(**kwargs):
         'ymin': 0.8,
         'prefix': 'DNN_5seeds_'
     }
+
     eff_plots = plot_efficiencies(df, **pars)
     
     if args.train and label!='default':
@@ -220,19 +229,22 @@ if __name__=='__main__':
             print(f"Training for {label}")
             eff_plots[label] = run_training(args=args, datasets=ds, label=label)
 
-        x_opts = ['eta', 'pt', 'nVtx']
+        x_opts = ['eta', 'pt', 'nVtx', 'offline_pt', 'offline_eta']
         eff_plots = transform_plots(eff_plots, x_opts)
         for x in x_opts:
-            plot(
-                eff_plots[x],
-                out_name=eff_plots[x]['out_name'],
-                ymin=0.7,
-                ymax=1.01,
-                ylabel='Efficiency',
-                out_path=OUT_PATH,
-                add_text=True
-            )
-
+            try:
+                plot(
+                    eff_plots[x],
+                    out_name=eff_plots[x]['out_name'],
+                    ymin=0.7,
+                    ymax=1.01,
+                    ylabel='Efficiency',
+                    out_path=OUT_PATH,
+                    add_text=True
+                )
+            except:
+                print(f'Skip {x}')
+                continue
     tock = time.time()
     print(f'Completed in {tock-tick} s.')
 
