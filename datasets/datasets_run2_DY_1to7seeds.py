@@ -482,7 +482,7 @@ run_muonHLTtest_Run2_DYJets_5HBd_0HLIP_0HLMuS = {
 "path": "/mnt/hadoop/store/user/dkondrat/muonHLTtest_Run2_DYJets_5HBd_0HB_0HLIP_0HLMuS/DYJetsToLL_M-50_TuneCP5_13TeV-madgraphMLM-pythia8/muonHLTtest_Run2_DYJets_5HBd_0HB_0HLIP_0HLMuS//210205_020739/0000/muonNtuple_test_MC_*.root"
 }
 
-datasets = [
+datasets_ = [
 run_muonHLTtest_Run2_DYJets_0HBd_0HLIP_1HLMuS,
 run_muonHLTtest_Run2_DYJets_0HBd_0HLIP_2HLMuS,
 run_muonHLTtest_Run2_DYJets_0HBd_0HLIP_3HLMuS,
@@ -605,13 +605,13 @@ run_muonHLTtest_Run2_DYJets_7HBd_0HLIP_0HLMuS,
     run_muonHLTtest_Run2_DYJets_5HBd_0HLIP_0HLMuS,
 ]
 
-datasets_dict = {
-    '1 seed': [
+datasets_dict_ = {
+    'Run2_1_seed': [
         run_muonHLTtest_Run2_DYJets_0HBd_0HLIP_1HLMuS,
         run_muonHLTtest_Run2_DYJets_0HBd_1HLIP_0HLMuS,
         run_muonHLTtest_Run2_DYJets_1HBd_0HLIP_0HLMuS,
     ],
-    '2 seeds': [
+    'Run2_2_seeds': [
         run_muonHLTtest_Run2_DYJets_0HBd_0HLIP_2HLMuS,
         run_muonHLTtest_Run2_DYJets_0HBd_1HLIP_1HLMuS,
         run_muonHLTtest_Run2_DYJets_0HBd_2HLIP_0HLMuS,
@@ -619,7 +619,7 @@ datasets_dict = {
         run_muonHLTtest_Run2_DYJets_1HBd_1HLIP_0HLMuS,
         run_muonHLTtest_Run2_DYJets_2HBd_0HLIP_0HLMuS,
     ],
-    '3 seeds': [
+    'Run2_3_seeds': [
         run_muonHLTtest_Run2_DYJets_0HBd_0HLIP_3HLMuS,
         run_muonHLTtest_Run2_DYJets_0HBd_1HLIP_2HLMuS,
         run_muonHLTtest_Run2_DYJets_0HBd_2HLIP_1HLMuS,
@@ -631,7 +631,7 @@ datasets_dict = {
         run_muonHLTtest_Run2_DYJets_2HBd_1HLIP_0HLMuS,
         run_muonHLTtest_Run2_DYJets_3HBd_0HLIP_0HLMuS,
     ],
-    '4 seeds': [
+    'Run2_4_seeds': [
         run_muonHLTtest_Run2_DYJets_0HBd_0HLIP_4HLMuS,
         run_muonHLTtest_Run2_DYJets_0HBd_1HLIP_3HLMuS,
         run_muonHLTtest_Run2_DYJets_0HBd_2HLIP_2HLMuS,
@@ -648,7 +648,7 @@ datasets_dict = {
         run_muonHLTtest_Run2_DYJets_3HBd_1HLIP_0HLMuS,
         run_muonHLTtest_Run2_DYJets_4HBd_0HLIP_0HLMuS,
     ],
-    '5 seeds': [
+    'Run2_5_seeds': [
         run_muonHLTtest_Run2_DYJets_0HBd_0HLIP_5HLMuS,
         run_muonHLTtest_Run2_DYJets_0HBd_1HLIP_4HLMuS,
         run_muonHLTtest_Run2_DYJets_0HBd_2HLIP_3HLMuS,
@@ -671,7 +671,7 @@ datasets_dict = {
         run_muonHLTtest_Run2_DYJets_4HBd_1HLIP_0HLMuS,
         run_muonHLTtest_Run2_DYJets_5HBd_0HLIP_0HLMuS,
     ],
-    '6 seeds': [
+    'Run2_6_seeds': [
         run_muonHLTtest_Run2_DYJets_0HBd_0HLIP_6HLMuS,
         run_muonHLTtest_Run2_DYJets_0HBd_1HLIP_5HLMuS,
         run_muonHLTtest_Run2_DYJets_0HBd_2HLIP_4HLMuS,
@@ -701,7 +701,7 @@ datasets_dict = {
         run_muonHLTtest_Run2_DYJets_5HBd_1HLIP_0HLMuS,
         run_muonHLTtest_Run2_DYJets_6HBd_0HLIP_0HLMuS,
     ],
-    '7 seeds': [
+    'Run2_7_seeds': [
         run_muonHLTtest_Run2_DYJets_0HBd_0HLIP_7HLMuS,
         run_muonHLTtest_Run2_DYJets_0HBd_1HLIP_6HLMuS,
         run_muonHLTtest_Run2_DYJets_0HBd_2HLIP_5HLMuS,
@@ -738,6 +738,34 @@ datasets_dict = {
         run_muonHLTtest_Run2_DYJets_6HBd_0HLIP_1HLMuS,
         run_muonHLTtest_Run2_DYJets_6HBd_1HLIP_0HLMuS,
         run_muonHLTtest_Run2_DYJets_7HBd_0HLIP_0HLMuS,
+    ],
+    'default': [default]
+}
+
+datasets = [
+    default,
+    run_muonHLTtest_Run2_DYJets_0HBd_2HLIP_2HLMuS,
+    run_muonHLTtest_Run2_DYJets_0HBd_4HLIP_0HLMuS,
+    run_muonHLTtest_Run2_DYJets_1HBd_2HLIP_1HLMuS,
+    run_muonHLTtest_Run2_DYJets_1HBd_3HLIP_0HLMuS,
+]
+datasets_dict = {
+    'Run2_4_seeds': [
+        #run_muonHLTtest_Run2_DYJets_0HBd_0HLIP_4HLMuS,
+        #run_muonHLTtest_Run2_DYJets_0HBd_1HLIP_3HLMuS,
+        run_muonHLTtest_Run2_DYJets_0HBd_2HLIP_2HLMuS,
+        #run_muonHLTtest_Run2_DYJets_0HBd_3HLIP_1HLMuS,
+        run_muonHLTtest_Run2_DYJets_0HBd_4HLIP_0HLMuS,
+        #run_muonHLTtest_Run2_DYJets_1HBd_0HLIP_3HLMuS,
+        #run_muonHLTtest_Run2_DYJets_1HBd_1HLIP_2HLMuS,
+        run_muonHLTtest_Run2_DYJets_1HBd_2HLIP_1HLMuS,
+        run_muonHLTtest_Run2_DYJets_1HBd_3HLIP_0HLMuS,
+        #run_muonHLTtest_Run2_DYJets_2HBd_0HLIP_2HLMuS,
+        #run_muonHLTtest_Run2_DYJets_2HBd_1HLIP_1HLMuS,
+        #run_muonHLTtest_Run2_DYJets_2HBd_2HLIP_0HLMuS,
+        #run_muonHLTtest_Run2_DYJets_3HBd_0HLIP_1HLMuS,
+        #run_muonHLTtest_Run2_DYJets_3HBd_1HLIP_0HLMuS,
+        #run_muonHLTtest_Run2_DYJets_4HBd_0HLIP_0HLMuS,
     ],
     'default': [default]
 }

@@ -28,7 +28,7 @@ datasets = [
     default_dy,
     default_tt2l2nu,
     default_ttsemilept,
-    default_qcd
+    #default_qcd
 ]
 
 datasets_dict = {
