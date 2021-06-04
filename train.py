@@ -3,9 +3,12 @@ import argparse
 import time
 
 #from datasets.datasets_run2_DY_1to7seeds import datasets, datasets_dict
+#from datasets.datasets_run3_may18 import datasets, datasets_dict
+from datasets.datasets_run3_SFopt import datasets, datasets_dict
+#from datasets.datasets_phase2_DY_apr14_forDNN import datasets, datasets_dict
 #from datasets.datasets_run2_VariousMC_5seeds import datasets, datasets_dict
 #from datasets.datasets_run2_first_studies import datasets
-from datasets.datasets_phase2_DYPU140_5seeds_OIFromL2 import datasets, datasets_dict
+#from datasets.datasets_phase2_DYPU140_5seeds_OIFromL2 import datasets, datasets_dict
 #datasets_dict = {ds['name']:[ds] for ds in datasets}
 
 from tqdm import tqdm
@@ -32,7 +35,7 @@ from tensorflow.python.keras.layers import BatchNormalization
 
 import cmsml
 
-OUT_PATH = '/home/dkondra/muon-hlt-analysis/plots/'
+OUT_PATH = '/home/dkondra/muon-hlt-analysis/plots/run3_may26/'
 MODEL_PATH = '/home/dkondra/muon-hlt-analysis/models/'
 
 def train(df, **kwargs):
@@ -42,6 +45,7 @@ def train(df, **kwargs):
     plot_loss = kwargs.pop('plot_loss', False)
 
     features = l2_branches # imported from tools
+    #features = ['L1'+b for b in l1_branches] # imported from tools
     truth_columns = []
     prediction_columns = []
     for c in df.columns:
@@ -115,6 +119,7 @@ def train(df, **kwargs):
         if save:
             save_path = f"{model_path}/{label}.pb"
             print(f'Saving model to {save_path}')
+            tensorflow.compat.v1.add_to_collection('features', features)
             cmsml.tensorflow.save_graph(save_path, dnn, variables_to_constants=True)
             cmsml.tensorflow.save_graph(save_path+'.txt', dnn, variables_to_constants=True)
         if plot_loss:
@@ -124,7 +129,7 @@ def train(df, **kwargs):
     print(prediction_columns)
     df['best_guess_label'] = df[prediction_columns].idxmax(axis=1)
     df['best_guess_label'] = df.best_guess_label.str.replace('pred: ', 'pass: ')
-    pred_label = f'DNN recommendation {opt_label}'
+    pred_label = f'DNN optimization: {opt_label}'
     df[pred_label] = df.lookup(df.index, df.best_guess_label)
     return df, pred_label
 
@@ -197,13 +202,13 @@ def run_training(**kwargs):
         'draw': False,
         'out_path': OUT_PATH,
         'ymin': 0.8,
-        'prefix': 'DNN_5seeds_'
+        'prefix': 'DNN_test_'
     }
 
     eff_plots = plot_efficiencies(df, **pars)
     
-    if args.train and label!='default':
-        plot_strategies(df, out_path=OUT_PATH)
+    if args.train and len(datasets_)>1:
+        plot_strategies(df, out_path=OUT_PATH, label=label)
     return eff_plots
 
 if __name__=='__main__':
@@ -215,7 +220,7 @@ if __name__=='__main__':
     tick = time.time()
     
     #datasets_dict = {k:v for k,v in datasets_dict.items() if ((k!='2 seeds')and(k!='7 seeds'))}
-    #datasets_dict = {k:v for k,v in datasets_dict.items() if ((k!='1 seed'))}
+    #datasets_dict = {k:v for k,v in datasets_dict.items() if ((k=='default')or(k=='5 seeds'))}
 
     #run_training(args=args, datasets=datasets)
 
@@ -229,14 +234,16 @@ if __name__=='__main__':
             print(f"Training for {label}")
             eff_plots[label] = run_training(args=args, datasets=ds, label=label)
 
-        x_opts = ['eta', 'pt', 'nVtx', 'offline_pt', 'offline_eta']
+        x_opts = ['eta', 'pt', 'nVtx', 'gen_pt', 'gen_eta']
         eff_plots = transform_plots(eff_plots, x_opts)
         for x in x_opts:
             try:
+                dest = f'{OUT_PATH}/eff_plots_{x}.pickle'.replace(' ','_')
+                save_to_pkl(eff_plots[x], dest)
                 plot(
                     eff_plots[x],
                     out_name=eff_plots[x]['out_name'],
-                    ymin=0.7,
+                    ymin=0.85,
                     ymax=1.01,
                     ylabel='Efficiency',
                     out_path=OUT_PATH,
@@ -245,6 +252,26 @@ if __name__=='__main__':
             except:
                 print(f'Skip {x}')
                 continue
+    
+    if False:
+        x_opts = ['eta', 'pt', 'nVtx', 'gen_pt', 'gen_eta']
+        for x in x_opts:
+            try:
+                dest = f'{OUT_PATH}/eff_plots_{x}.pickle'.replace(' ','_')
+                eff_plots_x = load_from_pkl(dest)
+                plot(
+                    eff_plots_x,
+                    out_name=eff_plots_x['out_name'],
+                    ymin=0.85,
+                    ymax=1.01,
+                    ylabel='Efficiency',
+                    out_path=OUT_PATH,
+                    add_text=True
+                )
+            except:
+                print(f'Skip {x}')
+                continue
+    
     tock = time.time()
     print(f'Completed in {tock-tick} s.')
 
