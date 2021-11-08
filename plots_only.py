@@ -9,6 +9,9 @@ logger = logging.getLogger("distributed.utils_perf")
 logger.setLevel(logging.ERROR)
 
 from datasets.datasets_run2_DY_may5 import datasets, datasets_dict
+#from datasets.datasets_run3_final_tests import datasets, datasets_dict
+#from datasets.datasets_test_jun24 import datasets, datasets_dict
+#from datasets.datasets_layers import datasets, datasets_dict
 #from datasets.datasets_run3_may18 import datasets, datasets_dict
 #from datasets.datasets_run2_DY_1to7seeds import datasets, datasets_dict
 #from datasets.datasets_phase2_DY_apr14 import datasets
@@ -20,7 +23,8 @@ from datasets.datasets_run2_DY_may5 import datasets, datasets_dict
 from tools import *
 from utils import *
 
-OUT_PATH = '/home/dkondra/muon-hlt-analysis/plots/run3_may24/'
+#OUT_PATH = '/home/dkondra/muon-hlt-analysis/plots/run3_jul7_Displaced_2-10/'
+OUT_PATH = '/home/dkondra/muon-hlt-analysis/plots/run3_aug26/'
 
 
 if __name__=='__main__':
@@ -105,8 +109,15 @@ if __name__=='__main__':
     """
     
     #plot_distributions(df, ['eta'], prefix='seed')
-
-    plot_efficiencies(df, out_path=OUT_PATH, ymin=0.85)
+    #df['100 OR 010'] = (
+    #    df['pass: muonHLTtest, Run2, DYJets, 1HB(d), 0HL(IP), 0HL(MuS)']+
+    #    df['pass: muonHLTtest, Run2, DYJets, 0HB(d), 1HL(IP), 0HL(MuS)']
+    #).astype(bool)
+    #df['003 OR 030'] = (
+    #    df['pass: muonHLTtest, Run2, DYJets, 0HB(d), 0HL(IP), 3HL(MuS)']+
+    #    df['pass: muonHLTtest, Run2, DYJets, 0HB(d), 3HL(IP), 0HL(MuS)']
+    #).astype(bool)
+    plot_efficiencies(df, out_path=OUT_PATH, ymin=0.8, ymax=1.1)
 
     """
     eff1hb = np.array([ 0.8292512246326103, 0.827300930713547, 0.8068910256410257, 0.811831789023521, 0.8092732653732325, 0.7976841428111933, 0.7857142857142857, 0.7869803416048985, 0.7767118756202448, 0.7704799711295561, 0.7685554668794893, 0.7693014705882353, 0.7543859649122807, 0.7703045685279187, 0.7520976353928299, 0.7746341463414634, 0.7366412213740458, 0.7689463955637708, 0.7458823529411764, 0.7412140575079872 ])

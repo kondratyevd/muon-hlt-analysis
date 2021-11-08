@@ -18,7 +18,7 @@ PT_CUT = 24
 l1_branches = ['pt', 'eta', 'phi']
 
 l2_branches = [
-    'pt','eta', 'phi',
+    'pt','eta', 'phi', 'dxy',
     'validHits',
     'tsos_IP_eta', 'tsos_IP_phi', 'tsos_IP_pt',
     'tsos_IP_pt_eta', 'tsos_IP_pt_phi',
@@ -54,8 +54,17 @@ seed_branches = [
 ]
 
 #ETA_BINNING = regular(48, -2.4, 2.4)
-ETA_BINNING = np.array([-2.4, -2.1, -1.6, -1.2, -1.04, -0.9, -0.3, -0.2,  0.2, 0.3, 0.9, 1.04, 1.2, 1.6, 2.1, 2.4])
+#ETA_BINNING = np.array([-2.4, -2.1, -1.6, -1.2, -1.04, -0.9, -0.3, -0.2,  0.2, 0.3, 0.9, 1.04, 1.2, 1.6, 2.1, 2.4])
+
+ETA_BINNING = np.array([-2.4, -2.1, -1.6, -1.2, -0.9, -0.3, -0.2,  0.2, 0.3, 0.9, 1.2, 1.6, 2.1, 2.4])
 PT_BINNING = np.array([5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150])
+
+#PT_BINNING = np.array([2,3,4,5,6,7,8,9,10])
+#PT_BINNING = np.array([1, 20, 30, 40, 50, 60, 70, 90, 150, 300, 500, 1000])
+
+#PT_BINNING = np.array([0, 5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 100])
+
+DXY_BINNING = np.array([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50])
 
 
 def build_dataset(dataset, progress_bar=False, study_seeds=False):
@@ -78,8 +87,8 @@ def build_dataset(dataset, progress_bar=False, study_seeds=False):
     i = 0
     for fname in loop:
         i+=1
-        if i==5:
-            break
+        #if i==5:
+        #    break
 
         tree = uproot.open(fname)['muonNtuples']['muonTree']['event']
         nVtx = tree['nVtx'].array()
@@ -132,7 +141,10 @@ def build_dataset(dataset, progress_bar=False, study_seeds=False):
         trg_branches = l3_branches
         
         for branch in ref_branches:
-            ref_muons[branch] = tree[f'{ref_name}.{branch}'].array()[ref_cut]
+            if 'dxy' in branch:
+                ref_muons[branch] = abs(tree[f'{ref_name}.{branch}'].array()[ref_cut])
+            else:
+                ref_muons[branch] = tree[f'{ref_name}.{branch}'].array()[ref_cut]
         for branch in trg_branches:
             trg_muons[branch] = tree[f'{trg_name}.{branch}'].array()
         for branch in gen_branches:
@@ -237,7 +249,7 @@ def preprocess(rets, only_overlap_events=True):
                     df_.set_index(subset, inplace=True)
 
                     if ('pass' in a):
-                        df.loc[df_.index, a] = df_[a]
+                        df.loc[df_.index, a] = df_[a].astype(int)
                     else:
                         df.loc[df_.index, prefix+a] = df_[a]
     if only_overlap_events:
@@ -263,6 +275,7 @@ def plot_efficiencies(df, **kwargs):
     prefix = kwargs.pop('prefix', '')
     out_path = kwargs.pop('out_path', './')
     ymin = kwargs.pop('ymin', 0.0)
+    ymax = kwargs.pop('ymax', 1.01)
 
     #x_opts = ['eta', 'pt', 'nVtx']
     #x_opts = ['offline_pt', 'offline_eta', 'nVtx']
@@ -277,6 +290,8 @@ def plot_efficiencies(df, **kwargs):
         'gen_pt': PT_BINNING,
         #'nVtx': regular(25, 100, 125),
         'nVtx': regular(20, 20, 60),
+        'dxy': DXY_BINNING,
+        'validHits': regular(30, 0, 60),
     }
 
     bin_opts['pt'] = bin_opts['pt'][bin_opts['pt']>PT_CUT]
@@ -296,6 +311,7 @@ def plot_efficiencies(df, **kwargs):
         out_name = f'{prefix}eff_vs_{x}'
         bins = bin_opts[x]
         values = {}
+        counts = {}
         errors_lo = {}
         errors_hi = {}
         for s in strategies:
@@ -303,6 +319,7 @@ def plot_efficiencies(df, **kwargs):
                 continue
 
             values[s] = np.array([])
+            counts[s] = np.array([])
             errors_lo[s] = np.array([])
             errors_hi[s] = np.array([])
             for ibin in range(len(bins)-1):
@@ -332,10 +349,12 @@ def plot_efficiencies(df, **kwargs):
                 err_hi = hi - value
 
                 values[s] = np.append(values[s], value)
+                counts[s] = np.append(counts[s], total)
                 errors_lo[s] = np.append(errors_lo[s], err_lo)
                 errors_hi[s] = np.append(errors_hi[s], err_hi)
             print('Efficiency', s, x)
             print('values: [', ', '.join([f'{v}' for v in values[s]]), ']')
+            print('counts: [', ', '.join([f'{v}' for v in counts[s]]), ']')
             #print('err_lo: ', errors_lo[s])
             #print('err_hi: ', errors_hi[s])
         data = {
@@ -352,7 +371,7 @@ def plot_efficiencies(df, **kwargs):
                 data,
                 out_name=out_name,
                 ymin=ymin,
-                ymax=1.01,
+                ymax=ymax,
                 ylabel='Efficiency',
                 out_path=out_path,
                 add_text=True
@@ -360,70 +379,64 @@ def plot_efficiencies(df, **kwargs):
     return plotting_data
 
 
-def plot_distributions(df, variables, prefix='', out_path='./'):
+def plot_distributions(df, cuts, variables, prefix='', out_path='./'):
+    bin_opts = {
+        'eta': ETA_BINNING,#regular(50,-2.4, 2.4),
+        'pt': regular(50, 0, 100),
+        'validHits': regular(30, 0, 60),
+        'chi2': regular(50, 0, 5),
+        'err0_IP': regular(50, 0, 0.015),
+        'err1_IP': regular(50, 0, 0.02),
+        'err2_IP': regular(50, 0, 0.05),
+        'err3_IP': regular(50, 0.099, 0.1),
+        'err4_IP': regular(50, 0, 5),
+        'tsos_IP_pt': regular(50, 0, 100),
+        'tsos_IP_eta': ETA_BINNING,#regular(50, -2.4, 2.4),
+        'tsos_IP_pt_eta': ETA_BINNING,#regular(50, -2.4, 2.4),
+        'err0_MuS': regular(50, 0, 0.015),
+        'err1_MuS': regular(50, 0, 0.05),
+        'err2_MuS': regular(50, 0, 0.25),
+        'err3_MuS': regular(50, 0, 10),
+        'err4_MuS': regular(50, 0, 15),
+        'tsos_MuS_pt': regular(50, 0, 100),
+        'tsos_MuS_eta': ETA_BINNING,#regular(50, -2.4, 2.4),
+        'tsos_MuS_pt_eta': ETA_BINNING,#regular(50, -2.4, 2.4),
+        'dxy': DXY_BINNING,
+    }
     for v in variables:
-        if 'eta' in v:
-            bins = regular(100, df[v].min(), df[v].max())
-            values, bins = np.histogram(df[v], bins)
-            errs_lo = None
-            errs_hi = None
-        else:
-            #bins = regular(100, df.eta.min(), df.eta.max())
-            bins = regular(48, -2.4, 2.4)
-            values = []
-            errs_lo = errs_hi = []
-            for ibin in range(len(bins)-1):
-                bin_min = bins[ibin]
-                bin_max = bins[ibin+1]
-                cut = (df.eta >= bin_min) & (df.eta < bin_max)
-                #value = df.loc[cut, v].mean()
-                value = np.sqrt(df.loc[cut, v]).median()
-                values = np.append(values, value)
-                errs_lo = np.append(errs_lo, df.loc[cut, v].std())
-                errs_hi = np.append(errs_hi, df.loc[cut, v].std())
-        
-            bins_pt = [5, 7, 9, 12, 16, 20, 24, 27, 30, 35, 40, 45, 50, 60, 70, 90, 150]
-            values_pt = []
-            for ibin in range(len(bins_pt)-1):
-                bin_min = bins_pt[ibin]
-                bin_max = bins_pt[ibin+1]
-                cut = (df.pt >= bin_min) & (df.pt < bin_max)
-                value = np.sqrt(df.loc[cut, v]).median()
-                values_pt = np.append(values_pt, value)
-
         data = {
-            'xlabel': 'eta',
-            'edges': bins,
-            'values': {'': values},
-            #'errors_lo': {'': errs_lo},
-            #'errors_hi': {'': errs_hi},
+            'xlabel': v,
+            'edges': [],
+            'values': {},
             'out_name': f'{prefix}_{v}'
         }
+        for the_cut_name, the_cut in cuts.items():
+            if v in bin_opts:
+                bins = bin_opts[v]
+            else:
+                bins = regular(100, df[v].min(), df[v].max())
+            values, bins = np.histogram(df.loc[the_cut,v], bins)
+            data['edges'] = bins
+            data['values'][the_cut_name] = values
+        ymax=0.2
+        logy = False
+        if ('pt' in v) and ('eta' not in v):
+            ymax=0.07
+        if ('err' in v):
+            ymax = 0.5
+            logy = True
+        #if ('eta' in v) or ('phi' in v):
+        #    ymax=0.07
         plot(
             data,
-            #histtype='step',
-            title=f'Median. {v}',
-            ymin = 1e-4,
-            ymax = 1,
-            logy = True,
+            histtype='fill',
+            normalize=True,
+            colormap='brg',#'bwr'
+            plotsize=5,
+            ymin=0, ymax=ymax,
             out_name = f'{prefix}_{v}',
             out_path=out_path,
-        )
-
-        data = {
-            'xlabel': 'p_T',
-            'edges': bins_pt,
-            'values': {'': values_pt},
-            'out_name': f'{prefix}_{v}_pT'
-        }
-        plot(
-            data,
-            title=f'Median. {v}',
-            ymin = 1e-4,
-            ymax = 1,
-            logy = True,
-            out_name = f'{prefix}_{v}_pT',
-            out_path=out_path,
+            logy=logy
         )
 
 def plot_strategies(df, out_path, label):
@@ -461,6 +474,7 @@ def plot_strategies(df, out_path, label):
         'tsos_MuS_pt': regular(50, 0, 100),
         'tsos_MuS_eta': regular(50, -2.4, 2.4),
         'tsos_MuS_pt_eta': regular(50, -2.4, 2.4),
+        'dxy': DXY_BINNING,
     }
     bin_opts['pt'] = bin_opts['pt'][bin_opts['pt']>PT_CUT]
     bin_opts['offline_pt'] = bin_opts['offline_pt'][bin_opts['offline_pt']>PT_CUT]
@@ -522,6 +536,9 @@ def plot(data, **kwargs):
     out_path = kwargs.pop('out_path', './')
     add_text = kwargs.pop('add_text', False)
     legend_size = kwargs.pop('legend_size', 'medium')
+    normalize = kwargs.pop('normalize', False)
+    colormap = kwargs.pop('colormap', 'jet')
+    plotsize = kwargs.pop('plotsize', 6)
     #legend_size = kwargs.pop('legend_size', 'x-small')
 
     out_name = out_name.replace(' ', '_')
@@ -534,31 +551,41 @@ def plot(data, **kwargs):
     plt.rcParams.update({'font.size': 12})
     if histtype=='errorbar':
         data_opts = {'marker': '.', 'markersize': 8}
+    elif histtype=='fill':
+        data_opts = {'linewidth': 2}
     else:
         data_opts = {}
     fig.clf()
-    plotsize = 6
     fig.set_size_inches(plotsize, plotsize)
     plt1 = fig.add_subplot(1, 1, 1)
-    cmap = plt.get_cmap('jet')
+    cmap = plt.get_cmap(colormap)
     colors = cmap(np.linspace(0, 1.0, len(data['values'].keys())))    
     
     bins = np.array(data['edges'])
-    xerr = (bins[1:] - bins[:-1]) / 2.
+    #xerr = (bins[1:] - bins[:-1]) / 2.
 
     for (label, values), color in zip(data['values'].items(), colors):
         data_opts['color'] = tuple(color)
+        if histtype=='fill':
+            data_opts['edgecolor'] = tuple(color)
+            if histtype=='fill':
+                color[3] = 0.05
+                data_opts['facecolor'] = tuple(color)
         if ('errors_lo' in data.keys()) and ('errors_hi' in data.keys()):
             yerr = [data['errors_lo'][label], data['errors_hi'][label]]
         else:
             yerr = None
+        if normalize:
+            values = values/values.sum()
+            #yerr[0] = yerr[0]/values.sum()
+            #yerr[1] = yerr[1]/values.sum()
         # Draw efficiency plot(s)
         print(label, values.mean())
         ax = hep.histplot(
             values,
             bins,
             histtype=histtype,
-            xerr=[xerr],
+            xerr=True,
             yerr=yerr,
             label=label.replace('pass: ', ''),
             **data_opts
@@ -572,7 +599,7 @@ def plot(data, **kwargs):
     # Styling
     #tev = '13 TeV'
     tev = '14 TeV'
-    lbl = hep.cms.label(ax=plt1, data=False, paper=False, year='', rlabel=tev)
+    lbl = hep.cms.label(ax=plt1, data=False, year='', rlabel=tev)
     if (ymin is not None) and (ymax is not None):
         plt1.set_ylim(ymin, ymax)
     xlabel = data['xlabel']
@@ -583,6 +610,7 @@ def plot(data, **kwargs):
         xlabel = '$offline ~ p_{T}, [GeV]$'
     elif (xlabel=='gen_pt') or (xlabel=='L1gen_pt'):
         xlabel = '$Gen. ~ p_{T}, [GeV]$'
+        #plt1.set_xscale('log')
     elif xlabel=='eta':
         if add_text:
             plt1.text(0.5, 0.55, '$offline ~p_T > 24 GeV$', fontsize=16)
@@ -593,7 +621,7 @@ def plot(data, **kwargs):
         xlabel = '$offline~\eta$'
     elif (xlabel=='gen_eta') or (xlabel=='L1gen_eta'):
         if add_text:
-            plt1.text(0.5, 0.55, '$p_T > 24 GeV$', fontsize=16)
+            plt1.text(0.5, 0.85, '$p_T > 24 GeV$', fontsize=16)
         xlabel = '$Gen. ~\eta$'
 
 
@@ -613,7 +641,7 @@ def plot(data, **kwargs):
         os.mkdir(out_path)
     except Exception:
         pass
-
+    #fig.tight_layout()
     out = f'{out_path}/{out_name}.png'
     fig.savefig(out)
     #out = f'{out_path}/{out_name}.pdf'
